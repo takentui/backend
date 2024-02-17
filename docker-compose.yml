@@ -5,7 +5,7 @@ services:
     build:
       context: .
       target: fastapi
-    image: one-more-backend
+    image: one-more-backend-fastapi
     ports:
       - 8000:8000
     volumes:
@@ -22,9 +22,9 @@ services:
     build:
       context: .
       target: django
-    image: one-more-backend
+    image: one-more-backend-django
     ports:
-      - 8001:8000
+      - 8010:8000
     volumes:
       - ./django-backend/:/opt/one-more-backend
     environment:
