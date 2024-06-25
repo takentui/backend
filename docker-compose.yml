@@ -1,0 +1,137 @@
+version: '3.4'
+
+services:
+  fastapi-app:
+    build:
+      context: .
+      target: fastapi
+    image: one-more-backend-fastapi
+    ports:
+      - 8000:8000
+    volumes:
+      - ./fastapi-backend/:/opt/one-more-backend
+    environment:
+      APP_DEBUG: 1
+      DATABASES_DSN: postgresql+asyncpg://local:local@postgres:5432/postgres
+    command: ["start-reload"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  django-app:
+    build:
+      context: .
+      target: django
+    image: one-more-backend-django
+    ports:
+      - 8010:8000
+    volumes:
+      - ./django-backend/:/opt/one-more-backend
+    environment:
+      APP_DEBUG: 1
+      DATABASES_DSN: postgresql+asyncpg://local:local@postgres:5432/postgres
+    command: [ "start" ]
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  producer:
+    build:
+      context: fastapi-backend/
+    image: one-more-backend
+    ports:
+      - 8001:8000
+    volumes:
+      - .:/opt/one-more-backend
+    environment:
+      APP_DEBUG: 1
+      DATABASES_DSN: postgresql+asyncpg://local:local@postgres:5432/postgres
+    command: ["producer"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  postgres:
+    image: postgres:13
+    command: ["postgres", "-c", "log_statement=all", "-c", "log_destination=stderr"]
+    ports:
+      - 5432:5432
+    environment:
+        POSTGRES_USER: local
+        POSTGRES_PASSWORD: local
+    healthcheck:
+      test: ["CMD", "pg_isready", "-q", "-d", "postgres", "-U", "local"]
+      interval: 5s
+      timeout: 30s
+      start_period: 40s
+      retries: 10
+
+  zookeeper:
+      image: bitnami/zookeeper:latest
+      ports:
+          - 2181:2181
+      environment:
+          - ALLOW_ANONYMOUS_LOGIN=yes
+
+  kafka:
+      image: bitnami/kafka:latest
+      ports:
+          - 9092:9092
+          - 9093:9093
+      environment:
+          - KAFKA_BROKER_ID=1
+          - KAFKA_CFG_LISTENERS=PLAINTEXT://:9092
+          - KAFKA_CFG_ADVERTISED_LISTENERS=PLAINTEXT://127.0.0.1:9092
+          - KAFKA_CFG_ZOOKEEPER_CONNECT=zookeeper:2181
+          - ALLOW_PLAINTEXT_LISTENER=yes
+          - KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP=CLIENT:PLAINTEXT
+          - KAFKA_CFG_LISTENERS=CLIENT://:9092
+          - KAFKA_CFG_ADVERTISED_LISTENERS=CLIENT://kafka:9092
+          - KAFKA_CFG_INTER_BROKER_LISTENER_NAME=CLIENT
+      depends_on:
+          - zookeeper
+  kafka-ui:
+    image: provectuslabs/kafka-ui
+    container_name: kafka-ui
+    ports:
+      - 8090:8080
+    restart: always
+    environment:
+      - KAFKA_CLUSTERS_0_NAME=local
+      - KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS=kafka:9092
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    container_name: "rabbitmq"
+    ports:
+      - 5672:5672
+      - 15672:15672
+    volumes:
+      - ~/.docker-conf/rabbitmq/data/:/var/lib/rabbitmq/
+      - ~/.docker-conf/rabbitmq/log/:/var/log/rabbitmq
+
+    restart: unless-stopped
+
+  prometheus:
+    image: prom/prometheus:latest
+    restart: unless-stopped
+    container_name: prometheus
+    ports:
+      - 9090:9090
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+
+  grafana:
+    image: grafana/grafana:latest
+    restart: unless-stopped
+    user: "472"
+    container_name: grafana
+    depends_on:
+      - prometheus
+    ports:
+      - 3000:3000
+    volumes:
+      - ./datasource.yml:/etc/grafana/provisioning/datasource.yml
+    env_file:
+      - ./config.monitoring

@@ -1,0 +1,32 @@
+image: python:3.9  # Выбираем базовый образ с Python 3.9
+
+variables:
+  # Определяем переменные для хранения образа Docker
+  IMAGE_NAME: "your_registry_name/your_image_name"
+
+stages:
+  - build  # Стадия сборки Docker образа
+  - lint  # Стадия линтинга с использованием pre-commit
+  - test  # Стадия запуска тестов
+
+# 1. Билд образа и пуш его в регистри
+build_image:
+  stage: build
+  script:
+    - echo "$CI_JOB_TOKEN" | docker login -u gitlab-ci-token --password-stdin $CI_REGISTRY
+    - docker build -t $IMAGE_NAME:$CI_COMMIT_REF_SLUG .
+    - docker push $IMAGE_NAME:$CI_COMMIT_REF_SLUG
+
+# 2. Линтеры
+lint_code:
+  stage: lint
+  script:
+    - pip install pre-commit
+    - pre-commit run --all-files
+
+# 3. Запуск тестов
+run_tests:
+  stage: test
+  script:
+    - pip install -r requirements.txt
+    - pytest
