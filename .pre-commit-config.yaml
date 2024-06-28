@@ -1,0 +1,38 @@
+default_language_version:
+    python: python3.11
+repos:
+-   repo: https://github.com/humitos/mirrors-autoflake
+    rev: v1.2
+    hooks:
+    -   id: autoflake
+-   repo: local
+    hooks:
+      - id: isort
+        name: isort
+        entry: python3 -m isort
+        language: system
+        types: [python]
+      - id: black
+        name: black
+        entry: python3 -m black --config pyproject.toml
+        language: system
+        types: [python]
+      - id: pylint
+        name: pylint
+        entry: python3 -m pylint
+        language: system
+        types: [python]
+      - id: mypy
+        name: mypy
+        entry: python3 -m mypy
+        args: ["--junit-xml", "test-reports/mypy-junit.xml", "--show-error-codes"]
+        require_serial: true
+        language: system
+        types: [python]
+-   repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v2.1.0
+    hooks:
+    -   id: trailing-whitespace
+    -   id: end-of-file-fixer
+    -   id: check-yaml
+    -   id: debug-statements
