@@ -646,7 +646,6 @@ env = [
   "APP_DEBUG = 0",
   "APP_JSON_LOGGER_ENABLED = 0",
   "DATABASES_DSN = postgresql+asyncpg://local:local@localhost:5432/postgres?jit=off",
-  "DOC_STORAGE_HOST="
 ]
 
 [tool.coverage.report]
